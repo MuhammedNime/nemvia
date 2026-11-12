@@ -181,30 +181,73 @@ with check (
   and not public.is_suspended()
   and exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role in ('teacher','admin'))
 );
+drop policy if exists "teachers update own classes" on public.classes;
+create policy "teachers update own classes" on public.classes for update to authenticated
+using (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()))
+with check (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()));
+drop policy if exists "teachers delete own classes" on public.classes;
+create policy "teachers delete own classes" on public.classes for delete to authenticated
+using (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()));
 
 drop policy if exists "teachers create lessons in own classes" on public.lessons;
 create policy "teachers create lessons in own classes" on public.lessons for insert to authenticated
 with check (teacher_id = (select auth.uid()) and not public.is_suspended() and public.is_class_teacher(class_id));
 drop policy if exists "teachers manage lessons" on public.lessons;
 create policy "teachers manage lessons" on public.lessons for update to authenticated
-using (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()))
-with check (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()));
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))))
+with check (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
+drop policy if exists "teachers delete lessons" on public.lessons;
+create policy "teachers delete lessons" on public.lessons for delete to authenticated
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
 
 drop policy if exists "teachers create assignments" on public.assignments;
 create policy "teachers create assignments" on public.assignments for insert to authenticated
 with check (teacher_id = (select auth.uid()) and not public.is_suspended() and public.is_class_teacher(class_id));
 drop policy if exists "teachers manage assignments" on public.assignments;
 create policy "teachers manage assignments" on public.assignments for update to authenticated
-using (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()))
-with check (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()));
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))))
+with check (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
+drop policy if exists "teachers delete assignments" on public.assignments;
+create policy "teachers delete assignments" on public.assignments for delete to authenticated
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
 
 drop policy if exists "class teachers create quizzes" on public.quizzes;
 create policy "class teachers create quizzes" on public.quizzes for insert to authenticated
 with check (teacher_id = (select auth.uid()) and not public.is_suspended() and public.is_class_teacher(class_id));
 drop policy if exists "quiz owners manage" on public.quizzes;
 create policy "quiz owners manage" on public.quizzes for update to authenticated
-using (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()))
-with check (not public.is_suspended() and (teacher_id = (select auth.uid()) or public.is_admin()));
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))))
+with check (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
+drop policy if exists "quiz owners delete" on public.quizzes;
+create policy "quiz owners delete" on public.quizzes for delete to authenticated
+using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
+
+drop policy if exists "quiz teachers manage questions" on public.quiz_questions;
+create policy "quiz teachers manage questions" on public.quiz_questions for all to authenticated
+using (
+  not public.is_suspended()
+  and exists (select 1 from public.quizzes q where q.id = quiz_id and (q.teacher_id = (select auth.uid()) or public.is_admin()))
+)
+with check (
+  not public.is_suspended()
+  and exists (select 1 from public.quizzes q where q.id = quiz_id and (q.teacher_id = (select auth.uid()) or public.is_admin()))
+);
+drop policy if exists "teachers manage answer keys" on public.quiz_answer_keys;
+create policy "teachers manage answer keys" on public.quiz_answer_keys for all to authenticated
+using (
+  not public.is_suspended()
+  and exists (
+    select 1 from public.quiz_questions qq join public.quizzes q on q.id = qq.quiz_id
+    where qq.id = question_id and (q.teacher_id = (select auth.uid()) or public.is_admin())
+  )
+)
+with check (
+  not public.is_suspended()
+  and exists (
+    select 1 from public.quiz_questions qq join public.quizzes q on q.id = qq.quiz_id
+    where qq.id = question_id and (q.teacher_id = (select auth.uid()) or public.is_admin())
+  )
+);
 
 drop policy if exists "users publish as themselves" on public.posts;
 create policy "users publish as themselves" on public.posts for insert to authenticated
