@@ -399,7 +399,7 @@ export async function createAssignment(uid: string, a: { class_id: string; title
 export async function submitAssignment(uid: string, s: Submission) {
   const { error } = await supabase.from('submissions').upsert({
     assignment_id: s.assignment_id, student_id: uid, answer_text: s.answer_text,
-    attachment_url: s.attachment_url || null, submitted_at: new Date().toISOString(),
+    attachment_url: s.attachment_url || null,
   }, { onConflict: 'assignment_id,student_id' });
   fail(error);
 }
