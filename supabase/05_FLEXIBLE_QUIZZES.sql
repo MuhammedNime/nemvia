@@ -254,6 +254,8 @@ declare
   v_uid uuid := (select auth.uid());
   v_quiz_id uuid;
   v_class_id uuid;
+  v_student_id uuid;
+  v_quiz_title text;
   v_score numeric := 0;
   v_total numeric := 0;
   v_count integer := 0;
@@ -268,7 +270,7 @@ begin
   if public.is_suspended() then raise exception 'Suspended accounts cannot grade quizzes'; end if;
   if p_grades is null or jsonb_typeof(p_grades) is distinct from 'object' then raise exception 'Grades must be a JSON object'; end if;
 
-  select a.quiz_id, q.class_id into v_quiz_id, v_class_id
+  select a.quiz_id, q.class_id, a.student_id, q.title into v_quiz_id, v_class_id, v_student_id, v_quiz_title
   from public.quiz_attempts a join public.quizzes q on q.id = a.quiz_id
   where a.id = p_attempt_id;
   if v_quiz_id is null then raise exception 'Quiz attempt not found'; end if;
@@ -297,6 +299,12 @@ begin
   set score = v_score, total_points = v_total, grading_status = 'graded', question_grades = v_grades,
       teacher_feedback = left(coalesce(p_feedback, ''), 5000), graded_by = v_uid, graded_at = now()
   where id = p_attempt_id;
+
+  insert into public.notifications(user_id, actor_id, kind, payload)
+  values (
+    v_student_id, v_uid, 'grade',
+    jsonb_build_object('title', 'تم تصحيح اختبارك', 'body', 'نتيجتك في ' || v_quiz_title || ': ' || v_score::text || ' من ' || v_total::text)
+  );
 
   return jsonb_build_object('score', v_score, 'total', v_total, 'questionGrades', v_grades);
 end;

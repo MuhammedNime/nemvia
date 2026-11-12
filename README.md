@@ -17,8 +17,8 @@ React + Vite + Tailwind + Supabase (Auth, Postgres/RLS, Storage, Realtime). ال
 ## خطوات التشغيل (بالترتيب)
 
 ### 1) قاعدة البيانات (Supabase → SQL Editor)
-1. مشروع جديد: شغّل بالترتيب `supabase/01_COMPLETE_SETUP.sql` ثم `02_NEMVIA_PATCH.sql` ثم `03_NEMVIA_PATCH.sql` ثم `04_SECURITY_HARDENING.sql`.
-2. إذا شغّلت الملفات السابقة: شغّل `04_SECURITY_HARDENING.sql` فقط؛ آمن للتكرار.
+1. مشروع جديد: شغّل بالترتيب `supabase/01_COMPLETE_SETUP.sql` ثم `02_NEMVIA_PATCH.sql` ثم `03_NEMVIA_PATCH.sql` ثم `04_SECURITY_HARDENING.sql` ثم `05_FLEXIBLE_QUIZZES.sql`.
+2. إذا شغّلت الملفات السابقة: شغّل `04_SECURITY_HARDENING.sql` ثم `05_FLEXIBLE_QUIZZES.sql`؛ كلاهما آمن للتكرار.
 
 ### 2) إعدادات المصادقة (Authentication)
 - **URL Configuration**: ضع `Site URL` = رابط موقعك على Netlify، وأضف في Redirect URLs:
