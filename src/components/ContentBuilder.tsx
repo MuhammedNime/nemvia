@@ -12,8 +12,8 @@ function toEmbed(url: string): string {
   return m ? `https://www.youtube.com/embed/${m[1]}` : u;
 }
 
-const Shell: React.FC<{ title: string; onClose: () => void; onSubmit: (e: React.FormEvent) => void; children: React.ReactNode; busy?: boolean }> =
-  ({ title, onClose, onSubmit, children, busy }) => (
+const Shell: React.FC<{ title: string; onClose: () => void; onSubmit: (e: React.FormEvent) => void; children: React.ReactNode; busy?: boolean; submitLabel?: string }> =
+  ({ title, onClose, onSubmit, children, busy, submitLabel = 'نشر' }) => (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
       <form onSubmit={onSubmit} className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
@@ -22,7 +22,7 @@ const Shell: React.FC<{ title: string; onClose: () => void; onSubmit: (e: React.
         </div>
         {children}
         <button type="submit" disabled={busy} className="w-full py-3 bg-[#1677c7] hover:bg-[#125fa0] disabled:opacity-60 text-white font-black rounded-xl text-sm cursor-pointer flex items-center justify-center gap-2">
-          {busy && <Loader2 className="w-4 h-4 animate-spin" />} نشر
+          {busy && <Loader2 className="w-4 h-4 animate-spin" />} {submitLabel}
         </button>
       </form>
     </div>
@@ -51,6 +51,7 @@ export const LessonBuilderModal: React.FC<{
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!classId || !title.trim()) return;
     onSubmit({
       id: 'new', class_id: classId, teacher_id: '', teacher_name: teacherName, title: title.trim(), content: content.trim(),
@@ -138,7 +139,7 @@ export const QuizBuilderModal: React.FC<{
   };
 
   return (
-    <Shell title="منشئ الاختبارات" onClose={onClose} onSubmit={submit}>
+    <Shell title="منشئ الاختبارات" onClose={onClose} onSubmit={submit} submitLabel={isPublished ? 'نشر الاختبار' : 'حفظ كمسودة'}>
       <select value={classId} onChange={e => setClassId(e.target.value)} className={field} required>
         {classes.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
       </select>
