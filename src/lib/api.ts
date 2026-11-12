@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import {
   AppRole, Profile, ClassItem, Lesson, Assignment, Submission, Quiz, QuizQuestion,
+  QuizAnswerValue, QuizAttempt, QuizQuestionGrade, QuizQuestionType,
   Post, PostComment, Story, LiveSession, DirectMessage, Course, NotificationItem,
   ContentReport, ContactInfo, ClassMemberInfo,
 } from '../types';
@@ -157,7 +158,7 @@ export async function loadAll(me: Profile): Promise<AppData> {
     supabase.from('quizzes').select('*').order('created_at', { ascending: false }),
     supabase.from('quiz_questions').select('*').order('position', { ascending: true }),
     supabase.from('quiz_answer_keys').select('*'),
-    supabase.from('quiz_attempts').select('quiz_id, student_id, score'),
+    supabase.from('quiz_attempts').select('*').order('submitted_at', { ascending: false }),
     supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(100),
     supabase.from('comments').select('*').order('created_at', { ascending: true }),
     supabase.from('post_likes').select('post_id, user_id'),
@@ -199,6 +200,7 @@ export async function loadAll(me: Profile): Promise<AppData> {
   [classRows.map(r => r.teacher_id), lessonRows.map(r => r.teacher_id), assignRows.map(r => r.teacher_id),
    subRows.map(r => r.student_id), postRows.map(r => r.author_id), commentRows.map(r => r.author_id),
    storyRows.map(r => r.user_id), liveRows.map(r => r.host_id),
+   attemptRows.map(r => r.student_id),
    dmRows.flatMap(r => [r.sender_id, r.recipient_id]), cmRows.map(r => r.sender_id),
    reportRows.map(r => r.reporter_id), memberRows.map(r => r.user_id)].forEach(list => list.forEach((i: string) => i && ids.add(i)));
   const known = new Map<string, Row>();
@@ -250,19 +252,32 @@ export async function loadAll(me: Profile): Promise<AppData> {
     submissions_count: submissions.filter(s => s.assignment_id === r.id).length, created_at: r.created_at,
   }));
 
-  const keys = new Map(keyRows.map(k => [k.question_id, k.correct_option]));
+  const keys = new Map(keyRows.map(k => [k.question_id, k]));
   const quizzes: Quiz[] = quizRows.map(r => {
     const questions: QuizQuestion[] = qqRows.filter(q => q.quiz_id === r.id).map(q => ({
-      id: q.id, question: q.question, options: Array.isArray(q.options) ? q.options : [],
-      correctOptionIndex: keys.has(q.id) ? keys.get(q.id) : -1, // الطالب لا يستلم الجواب الصحيح
+      id: q.id, type: (q.question_type || 'single_choice') as QuizQuestionType,
+      question: q.question, options: Array.isArray(q.options) ? q.options : [],
+      correctOptionIndex: keys.get(q.id)?.correct_option ?? -1, // مفاتيح الإجابات لا تظهر للطلاب
+      correctAnswer: keys.get(q.id)?.correct_answer || undefined,
+      acceptedAnswers: Array.isArray(keys.get(q.id)?.accepted_answers) ? keys.get(q.id)?.accepted_answers : undefined,
       explanation: keys.has(q.id) ? q.explanation || '' : '', points: Number(q.points) || 1,
     }));
+    const quizAttempts: QuizAttempt[] = attemptRows.filter(a => a.quiz_id === r.id).map(a => ({
+      id: a.id, quiz_id: a.quiz_id, student_id: a.student_id, student_name: nm(a.student_id),
+      answers: (a.answers || {}) as Record<string, QuizAnswerValue>,
+      score: Number(a.score ?? 0), totalPoints: Number(a.total_points ?? questions.reduce((sum, q) => sum + q.points, 0)),
+      gradingStatus: a.grading_status === 'pending' ? 'pending' : 'graded',
+      questionGrades: (a.question_grades || {}) as Record<string, QuizQuestionGrade>,
+      teacherFeedback: a.teacher_feedback || undefined, submitted_at: a.submitted_at,
+      graded_at: a.graded_at || undefined,
+    }));
+    const myAttempt = quizAttempts.find(a => a.student_id === me.id);
     return {
       id: r.id, class_id: r.class_id, class_title: classById.get(r.class_id)?.title || '',
       title: r.title, description: r.description, timeLimitMinutes: r.time_limit_minutes ?? 10,
-      questions, isPublished: r.is_published, attemptsCount: attemptRows.filter(a => a.quiz_id === r.id).length,
-      attempted: attemptRows.some(a => a.quiz_id === r.id && a.student_id === me.id),
-      myScore: Number(attemptRows.find(a => a.quiz_id === r.id && a.student_id === me.id)?.score ?? 0),
+      passPercentage: Number(r.pass_percentage ?? 50), questions, isPublished: r.is_published,
+      attemptsCount: quizAttempts.length, attempts: quizAttempts,
+      attempted: !!myAttempt, myScore: myAttempt?.score ?? 0, myGradingStatus: myAttempt?.gradingStatus,
     };
   });
 
@@ -365,30 +380,38 @@ export async function createLesson(uid: string, l: Lesson) {
   fail(error);
 }
 
-export async function createQuiz(uid: string, q: Quiz) {
-  const { data: quiz, error } = await supabase.from('quizzes').insert({
-    class_id: q.class_id, teacher_id: uid, title: q.title, description: q.description,
-    time_limit_minutes: q.timeLimitMinutes, is_published: q.isPublished,
-  }).select('id').single();
-  fail(error);
-  const { data: qs, error: e2 } = await supabase.from('quiz_questions').insert(
-    q.questions.map((qq, i) => ({
-      quiz_id: quiz!.id, question: qq.question, options: qq.options, points: qq.points,
-      explanation: qq.explanation || '', position: i,
-    })),
-  ).select('id, position');
-  fail(e2);
-  const { error: e3 } = await supabase.from('quiz_answer_keys').insert(
-    (qs || []).map((row: Row) => ({ question_id: row.id, correct_option: q.questions[row.position].correctOptionIndex })),
-  );
+export async function createQuiz(q: Quiz) {
+  const { error } = await supabase.rpc('create_quiz_with_questions', {
+    p_quiz: {
+      classId: q.class_id, title: q.title, description: q.description,
+      timeLimitMinutes: q.timeLimitMinutes, passPercentage: q.passPercentage,
+      isPublished: q.isPublished,
+      questions: q.questions.map(question => ({
+        type: question.type, question: question.question, options: question.options,
+        correctOptionIndex: question.correctOptionIndex, acceptedAnswers: question.acceptedAnswers || [],
+        explanation: question.explanation, points: question.points,
+      })),
+    },
+  });
   fail(e3);
 }
 
-export interface QuizResult { score: number; total: number; key: Record<string, { correct: number; explanation: string }>; }
-export async function submitQuiz(quizId: string, answers: Record<string, number>): Promise<QuizResult> {
+export interface QuizResult {
+  score: number; total: number; pendingReview: boolean;
+  key: Record<string, { type: QuizQuestionType; correctOptionIndex?: number; correctAnswer?: string; explanation: string }>;
+  questionGrades: Record<string, QuizQuestionGrade>;
+}
+export async function submitQuiz(quizId: string, answers: Record<string, QuizAnswerValue>): Promise<QuizResult> {
   const { data, error } = await supabase.rpc('submit_quiz_attempt', { p_quiz_id: quizId, p_answers: answers });
   fail(error);
   return data as QuizResult;
+}
+
+export async function gradeQuizAttempt(attemptId: string, grades: Record<string, QuizQuestionGrade>, feedback: string) {
+  const { error } = await supabase.rpc('grade_quiz_attempt', {
+    p_attempt_id: attemptId, p_grades: grades, p_feedback: feedback,
+  });
+  fail(error);
 }
 
 export async function createAssignment(uid: string, a: { class_id: string; title: string; instructions: string; due_at: string; total_points: number }) {
