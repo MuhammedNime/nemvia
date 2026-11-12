@@ -73,13 +73,38 @@ export interface Submission {
   graded_at?: string;
 }
 
+export type QuizQuestionType = 'single_choice' | 'true_false' | 'short_answer' | 'essay';
+export type QuizAnswerValue = string | number | boolean;
+
 export interface QuizQuestion {
   id: string;
+  type: QuizQuestionType;
   question: string;
   options: string[];
   correctOptionIndex: number;
+  acceptedAnswers?: string[];
   explanation: string;
   points: number;
+}
+
+export interface QuizQuestionGrade {
+  score: number | null;
+  feedback?: string;
+}
+
+export interface QuizAttempt {
+  id: string;
+  quiz_id: string;
+  student_id: string;
+  student_name: string;
+  answers: Record<string, QuizAnswerValue>;
+  score: number;
+  totalPoints: number;
+  gradingStatus: 'pending' | 'graded';
+  questionGrades: Record<string, QuizQuestionGrade>;
+  teacherFeedback?: string;
+  submitted_at: string;
+  graded_at?: string;
 }
 
 export interface Quiz {
@@ -89,23 +114,14 @@ export interface Quiz {
   title: string;
   description: string;
   timeLimitMinutes: number;
+  passPercentage: number;
   questions: QuizQuestion[];
   isPublished: boolean;
   attemptsCount: number;
   attempted?: boolean;
   myScore?: number;
-}
-
-export interface QuizAttempt {
-  id: string;
-  quiz_id: string;
-  student_id: string;
-  student_name: string;
-  answers: Record<string, number>; // questionId -> selectedOption
-  score: number;
-  totalPoints: number;
-  passed: boolean;
-  submitted_at: string;
+  myGradingStatus?: 'pending' | 'graded';
+  attempts?: QuizAttempt[];
 }
 
 export interface PostComment {
