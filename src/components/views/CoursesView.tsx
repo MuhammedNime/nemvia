@@ -125,6 +125,8 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
     }
   };
 
+  const activeQuestion = activeQuiz?.questions[currentQuestionIndex];
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Quiz Active Taking Modal / Fullscreen Simulator */}
@@ -143,9 +145,9 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
               {!quizSubmitted ? (
                 <div className="bg-white/15 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-amber-300" />
-                  <span>
+                  {activeQuiz.timeLimitMinutes > 0 ? <span>
                     {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                  </span>
+                  </span> : <span>بلا حد زمني</span>}
                 </div>
               ) : (
                 <div className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
@@ -162,20 +164,20 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                 <div className="space-y-5">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-500 pb-2 border-b border-slate-100">
                     <span>السؤال {currentQuestionIndex + 1} من {activeQuiz.questions.length}</span>
-                    <span>الدرجة: {activeQuiz.questions[currentQuestionIndex].points} نقاط</span>
+                    <span>الدرجة: {activeQuestion?.points} علامات</span>
                   </div>
 
                   <h4 className="font-extrabold text-base sm:text-lg text-slate-900 leading-relaxed">
-                    {activeQuiz.questions[currentQuestionIndex].question}
+                    {activeQuestion?.question}
                   </h4>
 
-                  <div className="space-y-3">
-                    {activeQuiz.questions[currentQuestionIndex].options.map((opt, idx) => {
-                      const isSelected = selectedAnswers[activeQuiz.questions[currentQuestionIndex].id] === idx;
+                  {activeQuestion?.type === 'single_choice' && <div className="space-y-3">
+                    {activeQuestion.options.map((opt, idx) => {
+                      const isSelected = selectedAnswers[activeQuestion.id] === idx;
                       return (
                         <button
                           key={idx}
-                          onClick={() => handleSelectOption(activeQuiz.questions[currentQuestionIndex].id, idx)}
+                          onClick={() => handleSelectOption(activeQuestion.id, idx)}
                           className={`w-full p-4 rounded-2xl border text-right transition-all flex items-center gap-3 cursor-pointer text-sm font-semibold ${
                             isSelected
                               ? 'bg-sky-50 border-[#1677c7] text-[#0f233a] shadow-xs'
@@ -191,7 +193,22 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                         </button>
                       );
                     })}
-                  </div>
+                  </div>}
+                  {activeQuestion?.type === 'true_false' && <div className="grid grid-cols-2 gap-3">
+                    {[true, false].map((value) => {
+                      const selected = selectedAnswers[activeQuestion.id] === value;
+                      return <button key={String(value)} onClick={() => handleSelectOption(activeQuestion.id, value)}
+                        className={`p-4 rounded-2xl border font-bold text-sm ${selected ? 'bg-sky-50 border-[#1677c7] text-[#0f233a]' : 'bg-white border-slate-200 text-slate-700'}`}>
+                        {value ? 'صح' : 'خطأ'}
+                      </button>;
+                    })}
+                  </div>}
+                  {activeQuestion?.type === 'short_answer' && <input value={String(selectedAnswers[activeQuestion.id] ?? '')}
+                    onChange={e => handleSelectOption(activeQuestion.id, e.target.value)} placeholder="اكتب إجابة قصيرة" maxLength={1000}
+                    className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:border-[#1677c7] outline-none" />}
+                  {activeQuestion?.type === 'essay' && <textarea value={String(selectedAnswers[activeQuestion.id] ?? '')}
+                    onChange={e => handleSelectOption(activeQuestion.id, e.target.value)} placeholder="اكتب إجابتك أو تقريرك هنا…" rows={9} maxLength={20000}
+                    className="w-full p-3 border border-slate-200 rounded-xl text-sm leading-relaxed focus:border-[#1677c7] outline-none resize-y" />}
                 </div>
               ) : (
                 // Quiz Results & Certificate
@@ -202,56 +219,54 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
 
                   <div className="space-y-1">
                     <h3 className="text-2xl font-black text-slate-900">أحسنت عملاً يا {currentUserName}!</h3>
-                    <p className="text-xs text-slate-500">تم تصحيح إجاباتك تلقائياً وحساب نتيجتك</p>
+                    <p className="text-xs text-slate-500">{quizResult?.pendingReview ? 'تم تصحيح الأسئلة الموضوعية، وباقي الإجابات بانتظار المعلم.' : 'تم تصحيح إجاباتك وحساب نتيجتك.'}</p>
                   </div>
 
                   {/* Score Card */}
                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 max-w-sm mx-auto flex items-center justify-around">
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">النتيجة النهائية</span>
-                      <span className="text-3xl font-black text-emerald-600">
+                        <span className={`text-3xl font-black ${quizResult?.pendingReview ? 'text-amber-600' : 'text-emerald-600'}`}>
                         {quizScore} <span className="text-sm font-normal text-slate-400">/ {quizResult?.total ?? 0}</span>
                       </span>
                     </div>
                     <div className="h-10 w-px bg-slate-200" />
                     <div>
                       <span className="text-xs text-slate-400 block font-bold">نقاط المكافأة</span>
-                      <span className="text-2xl font-black text-amber-500">+{Math.min(quizScore * 10, 100)} XP</span>
+                      <span className="text-2xl font-black text-amber-500">{quizResult?.pendingReview ? 'بانتظار التصحيح' : `+${Math.min(quizScore * 10, 100)} XP`}</span>
                     </div>
                   </div>
 
-                  {/* Generated Certificate Card */}
-                  <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl text-amber-950 text-right space-y-2 relative overflow-hidden shadow-xs">
-                    <div className="flex items-center justify-between border-b border-amber-200 pb-2">
-                      <span className="text-xs font-black uppercase text-amber-800">شهادة إتمام اختبار مصدقة · NEMVIA</span>
-                      <Award className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <p className="text-xs leading-relaxed">
-                      تشهد منصة <strong>NEMVIA</strong> بأن الطالب/ـة <strong>{currentUserName}</strong> قد اجتاز بنجاح اختبار <em>"{activeQuiz.title}"</em> بدرجة تميز وتفوق.
-                    </p>
-                    <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between text-[11px] text-amber-900">
-                      <span>التحقق: NEMVIA-CERT-PASS</span>
-                      <span className="font-bold">توقيع المؤسس: محمد جمال نعمه ✍️</span>
-                    </div>
-                  </div>
+                  {!quizResult?.pendingReview && <div className={`p-4 rounded-2xl border text-sm font-bold ${quizScore >= (quizResult?.total || 0) * activeQuiz.passPercentage / 100 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                    {quizScore >= (quizResult?.total || 0) * activeQuiz.passPercentage / 100 ? 'اجتزت الاختبار بنجاح' : 'تحتاج مراجعة بعض الإجابات'}
+                    <span className="block text-[11px] font-normal mt-1">درجة النجاح المحددة: {activeQuiz.passPercentage}%</span>
+                  </div>}
 
                   {/* Questions explanations */}
                   <div className="text-right space-y-3 pt-2">
                     <h5 className="font-bold text-xs text-slate-700">مراجعة الإجابات النموذجية:</h5>
                     {activeQuiz.questions.map((q, i) => {
-                      const userChoice = selectedAnswers[q.id];
                       const k = quizResult?.key?.[q.id];
-                      const isCorrect = k ? userChoice === k.correct : false;
+                      const userAnswer = selectedAnswers[q.id];
+                      const earned = quizResult?.questionGrades?.[q.id]?.score;
+                      const isPending = quizResult?.questionGrades?.[q.id]?.pending;
+                      const isCorrect = !isPending && earned === q.points;
+                      const answerLabel = q.type === 'true_false' && typeof userAnswer === 'boolean' ? (userAnswer ? 'صح' : 'خطأ')
+                        : q.type === 'single_choice' && typeof userAnswer === 'number' ? (q.options[userAnswer] || 'بدون إجابة')
+                        : typeof userAnswer === 'string' && userAnswer ? userAnswer : 'بدون إجابة';
                       return (
                         <div key={q.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 text-xs space-y-1">
                           <div className="flex items-center justify-between font-bold">
                             <span className="text-slate-900">{i + 1}. {q.question}</span>
-                            <span className={`text-[11px] ${isCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {isCorrect ? '✓ إجابة صحيحة' : '✗ إجابة خاطئة'}
+                            <span className={`text-[11px] ${isPending ? 'text-amber-600' : isCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {isPending ? 'بانتظار تصحيح المعلم' : `${earned ?? 0} / ${q.points}`}
                             </span>
                           </div>
+                          <p className="text-slate-600 text-[11px] leading-relaxed"><strong>إجابتك:</strong> {answerLabel}</p>
+                          {k?.correctOptionIndex !== undefined && <p className="text-slate-600 text-[11px] leading-relaxed"><strong>الإجابة النموذجية:</strong> {q.options[k.correctOptionIndex]}</p>}
+                          {k?.correctAnswer && <p className="text-slate-600 text-[11px] leading-relaxed"><strong>إجابة مقبولة:</strong> {k.correctAnswer}</p>}
                           <p className="text-slate-600 text-[11px] leading-relaxed">
-                            <strong>التفسير العلمي:</strong> {k?.explanation || '—'}
+                            <strong>شرح السؤال:</strong> {k?.explanation || '—'}
                           </p>
                         </div>
                       );
