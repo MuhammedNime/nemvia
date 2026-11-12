@@ -5,7 +5,11 @@ if (-not $mutex.WaitOne(0)) {
   exit 0
 }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$branch = (& git -C $root branch --show-current 2>$null).Trim()
+function Invoke-RepoGit {
+  & git -c "safe.directory=$root" -C $root @args
+}
+
+$branch = (Invoke-RepoGit branch --show-current 2>$null | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
   Write-Host 'Auto-sync stopped: open the project on the main branch.'
   exit 1
@@ -35,19 +39,19 @@ try {
       if ($event) { Remove-Event -EventIdentifier $event.EventIdentifier }
     } while ($event)
 
-    $status = & git -C $root status --porcelain --untracked-files=all
+    $status = Invoke-RepoGit status --porcelain --untracked-files=all
     if ($LASTEXITCODE -ne 0 -or -not $status) { continue }
-    & git -C $root add -A
+    Invoke-RepoGit add -A
     if ($LASTEXITCODE -ne 0) { Write-Host 'Auto-sync: git add failed.'; continue }
-    & git -C $root diff --cached --quiet
+    Invoke-RepoGit diff --cached --quiet
     if ($LASTEXITCODE -eq 0) { continue }
 
     $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    & git -C $root commit -m "Auto-sync: $stamp"
+    Invoke-RepoGit commit -m "Auto-sync: $stamp"
     if ($LASTEXITCODE -ne 0) { Write-Host 'Auto-sync: commit failed.'; continue }
-    & git -C $root pull --rebase origin main
+    Invoke-RepoGit pull --rebase origin main
     if ($LASTEXITCODE -ne 0) { Write-Host 'Auto-sync: pull/rebase failed; resolve the Git issue, then save again.'; continue }
-    & git -C $root push origin main
+    Invoke-RepoGit push origin main
     if ($LASTEXITCODE -ne 0) { Write-Host 'Auto-sync: push failed; check GitHub sign-in or network, then save again.'; continue }
     Write-Host "Auto-sync pushed changes at $stamp."
   }
