@@ -82,8 +82,10 @@ begin
   v_pass := coalesce((p_quiz->>'passPercentage')::numeric, 50);
   if v_minutes < 0 or v_minutes > 240 then raise exception 'Time limit must be between 0 and 240 minutes'; end if;
   if v_pass < 0 or v_pass > 100 then raise exception 'Pass percentage must be between 0 and 100'; end if;
-  if jsonb_typeof(p_quiz->'questions') is distinct from 'array'
-     or jsonb_array_length(p_quiz->'questions') not between 1 and 100 then
+  if jsonb_typeof(p_quiz->'questions') is distinct from 'array' then
+    raise exception 'Quiz questions must be a JSON array';
+  end if;
+  if jsonb_array_length(p_quiz->'questions') not between 1 and 100 then
     raise exception 'A quiz must have between 1 and 100 questions';
   end if;
 
@@ -106,8 +108,10 @@ begin
 
     if v_type = 'single_choice' then
       v_options := v_question->'options';
-      if jsonb_typeof(v_options) is distinct from 'array'
-         or jsonb_array_length(v_options) not between 2 and 8 then
+      if jsonb_typeof(v_options) is distinct from 'array' then
+        raise exception 'Multiple-choice options must be a JSON array';
+      end if;
+      if jsonb_array_length(v_options) not between 2 and 8 then
         raise exception 'Multiple-choice questions need between 2 and 8 options';
       end if;
       v_correct := (v_question->>'correctOptionIndex')::integer;
