@@ -257,6 +257,7 @@ declare
   v_score numeric := 0;
   v_total numeric := 0;
   v_count integer := 0;
+  v_keys_count integer := 0;
   v_grades jsonb := '{}'::jsonb;
   v_item jsonb;
   v_mark numeric;
@@ -289,7 +290,8 @@ begin
     v_total := v_total + r.points;
     v_grades := v_grades || jsonb_build_object(r.id::text, jsonb_build_object('score', v_mark, 'feedback', v_feedback, 'pending', false));
   end loop;
-  if jsonb_object_length(p_grades) <> v_count then raise exception 'Grades contain a question outside this quiz'; end if;
+  select count(*) into v_keys_count from jsonb_object_keys(p_grades);
+  if v_keys_count <> v_count then raise exception 'Grades contain a question outside this quiz'; end if;
 
   update public.quiz_attempts
   set score = v_score, total_points = v_total, grading_status = 'graded', question_grades = v_grades,
