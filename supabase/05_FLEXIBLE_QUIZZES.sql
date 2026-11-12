@@ -163,6 +163,7 @@ as $$
 declare
   v_uid uuid := (select auth.uid());
   v_class uuid;
+  v_teacher_id uuid;
   v_score numeric := 0;
   v_total numeric := 0;
   v_pending boolean := false;
@@ -183,7 +184,7 @@ begin
     )
   ) then raise exception 'Answers contain a question outside this quiz'; end if;
 
-  select class_id into v_class from public.quizzes where id = p_quiz_id and is_published;
+  select class_id, teacher_id into v_class, v_teacher_id from public.quizzes where id = p_quiz_id and is_published;
   if v_class is null or not public.is_class_member(v_class) then raise exception 'Quiz not available'; end if;
   if exists (select 1 from public.quiz_attempts where quiz_id = p_quiz_id and student_id = v_uid) then
     raise exception 'لقد أجريت هذا الاختبار من قبل';
@@ -242,6 +243,10 @@ begin
 
   insert into public.quiz_attempts(quiz_id, student_id, answers, score, total_points, grading_status, question_grades)
   values (p_quiz_id, v_uid, p_answers, v_score, v_total, case when v_pending then 'pending' else 'graded' end, v_grades);
+  if v_teacher_id <> v_uid then
+    insert into public.notifications(user_id, actor_id, kind, payload)
+    values (v_teacher_id, v_uid, 'academic', jsonb_build_object('title', 'محاولة اختبار جديدة', 'body', 'أرسل طالب إجابات اختبار: ' || (select title from public.quizzes where id = p_quiz_id)));
+  end if;
   return jsonb_build_object('score', v_score, 'total', v_total, 'pendingReview', v_pending, 'key', v_key, 'questionGrades', v_grades);
 end;
 $$;
