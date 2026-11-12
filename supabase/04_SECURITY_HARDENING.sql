@@ -72,10 +72,36 @@ begin
 end;
 $$;
 
+create or replace function public.guard_submission_insert()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is null then raise exception 'Sign in required'; end if;
+  if public.is_suspended() then raise exception 'Suspended accounts cannot submit assignments'; end if;
+  if new.student_id is distinct from (select auth.uid()) then
+    raise exception 'A submission must belong to the signed-in student';
+  end if;
+  if new.grade is not null or new.teacher_feedback is not null then
+    raise exception 'Students cannot set grades or teacher feedback';
+  end if;
+
+  -- Use server time so a client cannot backdate or future-date a submission.
+  new.submitted_at := statement_timestamp();
+  return new;
+end;
+$$;
+
 drop trigger if exists submissions_update_guard on public.submissions;
 create trigger submissions_update_guard
 before update on public.submissions
 for each row execute function public.guard_submission_update();
+drop trigger if exists submissions_insert_guard on public.submissions;
+create trigger submissions_insert_guard
+before insert on public.submissions
+for each row execute function public.guard_submission_insert();
 
 drop policy if exists "students update own submission before grading" on public.submissions;
 drop policy if exists "teachers grade submissions" on public.submissions;
@@ -106,6 +132,8 @@ create policy "students submit as themselves" on public.submissions for insert t
 with check (
   student_id = (select auth.uid())
   and not public.is_suspended()
+  and grade is null
+  and teacher_feedback is null
   and exists (
     select 1 from public.assignments a
     join public.class_members m on m.class_id = a.class_id
