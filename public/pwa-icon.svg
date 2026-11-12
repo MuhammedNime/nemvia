@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="nemviaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f233a" />
+      <stop offset="50%" stop-color="#164673" />
+      <stop offset="100%" stop-color="#1677c7" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  <!-- Background squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#nemviaGrad)" />
+  <!-- Stylized N monogram with educational diploma cap motif -->
+  <path d="M140 372 V140 H195 L317 298 V140 H372 V372 H317 L195 214 V372 Z" fill="#ffffff" filter="url(#shadow)" />
+  <circle cx="372" cy="140" r="24" fill="#38bdf8" />
+</svg>
