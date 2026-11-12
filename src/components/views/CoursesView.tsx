@@ -385,16 +385,17 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      تصحيح تلقائي فوري
+                      تصحيح آلي أو مراجعة من المعلم
                     </span>
                     <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
-                      {q.timeLimitMinutes} دقائق
+                      {q.timeLimitMinutes > 0 ? `${q.timeLimitMinutes} دقائق` : 'بلا حد زمني'}
                     </span>
                   </div>
 
                   <h3 className="font-extrabold text-slate-900 text-base">{q.title}</h3>
                   <p className="text-xs text-slate-600 leading-relaxed">{q.description}</p>
+                  <p className="text-[11px] text-slate-500">{q.questions.length} سؤال · {q.questions.reduce((sum, item) => sum + item.points, 0).toFixed(2)} علامة · النجاح من {q.passPercentage}%</p>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -406,7 +407,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                   )}
                   {q.attempted ? (
                     <span className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-xl">
-                      تم الحل ✓ · نتيجتك {q.myScore}
+                      {q.myGradingStatus === 'pending' ? `بانتظار التصحيح · نتيجتك الحالية ${q.myScore}` : `تم الحل ✓ · نتيجتك ${q.myScore}`}
                     </span>
                   ) : q.questions.length === 0 ? (
                     <span className="text-slate-400">لا توجد أسئلة</span>
@@ -420,6 +421,17 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                   </button>
                   )}
                 </div>
+                {(currentRole === 'admin' || classes.find(c => c.id === q.class_id)?.teacher_id === currentUserId) && (q.attempts?.length || 0) > 0 && (
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <button type="button" onClick={() => setExpandedQuizId(expandedQuizId === q.id ? null : q.id)}
+                      className="text-xs font-bold text-[#1677c7]">
+                      {expandedQuizId === q.id ? 'إخفاء المحاولات' : `عرض وتصحيح المحاولات (${q.attempts?.length})`}
+                    </button>
+                    {expandedQuizId === q.id && q.attempts?.map(attempt => (
+                      <QuizAttemptReview key={attempt.id} attempt={attempt} questions={q.questions} onGrade={onGradeQuizAttempt} />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
