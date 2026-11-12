@@ -222,6 +222,26 @@ drop policy if exists "quiz owners delete" on public.quizzes;
 create policy "quiz owners delete" on public.quizzes for delete to authenticated
 using (not public.is_suspended() and (public.is_admin() or (teacher_id = (select auth.uid()) and public.is_class_teacher(class_id))));
 
+drop policy if exists "users schedule own live sessions" on public.live_sessions;
+create policy "users schedule own live sessions" on public.live_sessions for insert to authenticated
+with check (
+  host_id = (select auth.uid())
+  and not public.is_suspended()
+  and exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role in ('teacher','admin'))
+  and (class_id is null or public.is_class_teacher(class_id) or public.is_admin())
+);
+drop policy if exists "hosts manage live sessions" on public.live_sessions;
+create policy "hosts manage live sessions" on public.live_sessions for update to authenticated
+using (not public.is_suspended() and (host_id = (select auth.uid()) or public.is_admin()))
+with check (
+  not public.is_suspended()
+  and (host_id = (select auth.uid()) or public.is_admin())
+  and (class_id is null or public.is_class_teacher(class_id) or public.is_admin())
+);
+drop policy if exists "hosts delete live sessions" on public.live_sessions;
+create policy "hosts delete live sessions" on public.live_sessions for delete to authenticated
+using (not public.is_suspended() and (host_id = (select auth.uid()) or public.is_admin()));
+
 drop policy if exists "quiz teachers manage questions" on public.quiz_questions;
 create policy "quiz teachers manage questions" on public.quiz_questions for all to authenticated
 using (
@@ -311,6 +331,9 @@ begin
     left join public.quiz_answer_keys k on k.question_id = qq.id
     where qq.quiz_id = p_quiz_id
   loop
+    if jsonb_typeof(r.options) is distinct from 'array' then
+      raise exception 'Question options must be a JSON array';
+    end if;
     v_total := v_total + r.points;
     if p_answers ? r.id::text then
       if jsonb_typeof(p_answers -> r.id::text) <> 'number'
