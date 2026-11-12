@@ -1,4 +1,9 @@
 $ErrorActionPreference = 'Continue'
+$mutex = [System.Threading.Mutex]::new($false, 'Local\NEMVIA-AutoSync')
+if (-not $mutex.WaitOne(0)) {
+  $mutex.Dispose()
+  exit 0
+}
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $branch = (& git -C $root branch --show-current 2>$null).Trim()
 if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
@@ -50,4 +55,6 @@ try {
 finally {
   foreach ($name in $events) { Unregister-Event -SourceIdentifier "Nemvia.AutoSync.$name" -ErrorAction SilentlyContinue }
   $watcher.Dispose()
+  $mutex.ReleaseMutex()
+  $mutex.Dispose()
 }
