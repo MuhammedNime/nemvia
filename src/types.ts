@@ -82,6 +82,7 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   correctOptionIndex: number;
+  correctAnswer?: string;
   acceptedAnswers?: string[];
   explanation: string;
   points: number;

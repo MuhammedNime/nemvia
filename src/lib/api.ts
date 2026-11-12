@@ -393,7 +393,7 @@ export async function createQuiz(q: Quiz) {
       })),
     },
   });
-  fail(e3);
+  fail(error);
 }
 
 export interface QuizResult {
