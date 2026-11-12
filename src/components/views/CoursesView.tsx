@@ -13,11 +13,12 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react';
-import { AppRole, Course, Lesson, Quiz, QuizQuestion } from '../../types';
+import { AppRole, Course, Lesson, Quiz, QuizAnswerValue, QuizQuestion, QuizQuestionGrade } from '../../types';
 
 import { LessonBuilderModal, QuizBuilderModal } from '../ContentBuilder';
 import { QuizResult, UploadedFile } from '../../lib/api';
 import { ClassItem } from '../../types';
+import { QuizAttemptReview } from '../QuizAttemptReview';
 
 interface CoursesViewProps {
   currentRole: AppRole;
@@ -27,7 +28,8 @@ interface CoursesViewProps {
   quizzes: Quiz[];
   currentUserId: string;
   classes: ClassItem[];
-  onSubmitQuiz: (quizId: string, answers: Record<string, number>) => Promise<QuizResult>;
+  onSubmitQuiz: (quizId: string, answers: Record<string, QuizAnswerValue>) => Promise<QuizResult>;
+  onGradeQuizAttempt: (attemptId: string, grades: Record<string, QuizQuestionGrade>, feedback: string) => Promise<boolean>;
   onUpload: (f: File, folder: string) => Promise<UploadedFile>;
   onDeleteLesson: (id: string) => void;
   onDeleteQuiz: (id: string) => void;
@@ -45,6 +47,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
   currentUserId,
   classes,
   onSubmitQuiz,
+  onGradeQuizAttempt,
   onUpload,
   onDeleteLesson,
   onDeleteQuiz,
@@ -58,10 +61,11 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
   // Active Quiz Taking Mode State
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, QuizAnswerValue>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+  const [expandedQuizId, setExpandedQuizId] = useState<string | null>(null);
 
   // Teacher builders
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
@@ -71,12 +75,12 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
 
   // Server-side grading result
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
-  const answersRef = useRef<Record<string, number>>({});
+  const answersRef = useRef<Record<string, QuizAnswerValue>>({});
   const finishingRef = useRef(false);
 
   // Quiz Timer
   useEffect(() => {
-    if (!activeQuiz || quizSubmitted) return;
+    if (!activeQuiz || quizSubmitted || activeQuiz.timeLimitMinutes <= 0) return;
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -100,13 +104,10 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
     setTimeLeft(q.timeLimitMinutes * 60);
   };
 
-  const handleSelectOption = (questionId: string, optionIndex: number) => {
+  const handleSelectOption = (questionId: string, answer: QuizAnswerValue) => {
     if (quizSubmitted) return;
-    answersRef.current = { ...answersRef.current, [questionId]: optionIndex };
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [questionId]: optionIndex
-    }));
+    answersRef.current = { ...answersRef.current, [questionId]: answer };
+    setSelectedAnswers(prev => ({ ...prev, [questionId]: answer }));
   };
 
   const handleFinishQuiz = async () => {
@@ -117,7 +118,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
       setQuizResult(res);
       setQuizScore(res.score);
       setQuizSubmitted(true);
-      onRewardPoints(res.score * 10);
+      if (!res.pendingReview) onRewardPoints(res.score * 10);
     } catch {
       finishingRef.current = false;
       setActiveQuiz(null); // رسالة الخطأ تظهر من الواجهة الرئيسية
