@@ -20,7 +20,7 @@ import { supabase } from './lib/supabase';
 import * as api from './lib/api';
 import { AppData } from './lib/api';
 import {
-  Profile, ClassItem, Lesson, Submission, Quiz, Post, Story, DirectMessage,
+  Profile, ClassItem, Lesson, Submission, Quiz, QuizAnswerValue, QuizQuestionGrade, Post, Story, DirectMessage,
 } from './types';
 
 const EMPTY: AppData = {
@@ -145,8 +145,8 @@ export default function App() {
     return ok;
   };
   const handleAddLesson = (l: Lesson) => { void run(() => api.createLesson(uid, l), 'تم نشر الدرس'); };
-  const handleAddQuiz = (q: Quiz) => { void run(() => api.createQuiz(uid, q), 'تم نشر الاختبار'); };
-  const handleSubmitQuiz = async (quizId: string, answers: Record<string, number>) => {
+  const handleAddQuiz = (q: Quiz) => { void run(() => api.createQuiz(q), q.isPublished ? 'تم نشر الاختبار' : 'تم حفظ الاختبار كمسودة'); };
+  const handleSubmitQuiz = async (quizId: string, answers: Record<string, QuizAnswerValue>) => {
     try {
       const res = await api.submitQuiz(quizId, answers);
       void refresh();
@@ -156,6 +156,8 @@ export default function App() {
       throw e;
     }
   };
+  const handleGradeQuizAttempt = (attemptId: string, grades: Record<string, QuizQuestionGrade>, feedback: string) =>
+    run(() => api.gradeQuizAttempt(attemptId, grades, feedback), 'تم حفظ تصحيح الاختبار');
   const handleRewardPoints = async (points: number) => {
     const total = await api.awardPoints(points);
     if (total !== null) setProfile(p => (p ? { ...p, points: total } : p));
@@ -299,6 +301,7 @@ export default function App() {
             <CoursesView currentRole={role} currentUserId={uid} currentUserName={profile.display_name} courses={data.courses}
               lessons={data.lessons} quizzes={data.quizzes} classes={data.classes}
               onAddQuiz={handleAddQuiz} onAddLesson={handleAddLesson} onSubmitQuiz={handleSubmitQuiz}
+              onGradeQuizAttempt={handleGradeQuizAttempt}
               onRewardPoints={handleRewardPoints} onUpload={upload}
               onDeleteLesson={handleDelete('lessons', 'الدرس')} onDeleteQuiz={handleDelete('quizzes', 'الاختبار')} />
           )}
