@@ -137,7 +137,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
             <div className="bg-gradient-to-r from-[#0f233a] to-[#1677c7] text-white p-5 flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-[11px] text-sky-200 font-bold uppercase tracking-wider block">
-                  اختبار تقييم مستوى فوري · NEMVIA Quiz Engine
+                  اختبار دراسي · NEMVIA
                 </span>
                 <h3 className="font-black text-base sm:text-lg">{activeQuiz.title}</h3>
               </div>
@@ -422,6 +422,26 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                   )}
                 </div>
                 {q.attempted && q.myTeacherFeedback && <p className="p-2 bg-sky-50 rounded-lg text-[11px] text-sky-900">تعليق المعلم: {q.myTeacherFeedback}</p>}
+                {q.attempted && q.myGradingStatus === 'graded' && q.attempts?.find(a => a.student_id === currentUserId) && (
+                  <details className="pt-2 border-t border-slate-100">
+                    <summary className="cursor-pointer text-[11px] font-bold text-[#1677c7]">مراجعة الإجابات والتعليقات</summary>
+                    <div className="mt-2 space-y-2">
+                      {q.questions.map((question, index) => {
+                        const attempt = q.attempts?.find(a => a.student_id === currentUserId);
+                        const answer = attempt?.answers[question.id];
+                        const answerLabel = question.type === 'true_false' && typeof answer === 'boolean' ? (answer ? 'صح' : 'خطأ')
+                          : question.type === 'single_choice' && typeof answer === 'number' ? (question.options[answer] || 'بدون إجابة')
+                          : typeof answer === 'string' && answer ? answer : 'بدون إجابة';
+                        const grade = attempt?.questionGrades[question.id];
+                        return <div key={question.id} className="p-2 bg-slate-50 rounded-lg text-[11px] space-y-1">
+                          <p className="font-bold text-slate-800">{index + 1}. {question.question}</p>
+                          <p className="text-slate-600">إجابتك: {answerLabel} · العلامة: {grade?.score ?? 0} / {question.points}</p>
+                          {grade?.feedback && <p className="text-sky-800">ملاحظة المعلم: {grade.feedback}</p>}
+                        </div>;
+                      })}
+                    </div>
+                  </details>
+                )}
                 {(currentRole === 'admin' || classes.find(c => c.id === q.class_id)?.teacher_id === currentUserId) && (q.attempts?.length || 0) > 0 && (
                   <div className="pt-2 border-t border-slate-100 space-y-3">
                     <button type="button" onClick={() => setExpandedQuizId(expandedQuizId === q.id ? null : q.id)}
