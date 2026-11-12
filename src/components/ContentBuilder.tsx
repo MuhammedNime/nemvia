@@ -51,7 +51,6 @@ export const LessonBuilderModal: React.FC<{
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     if (!classId || !title.trim()) return;
     onSubmit({
       id: 'new', class_id: classId, teacher_id: '', teacher_name: teacherName, title: title.trim(), content: content.trim(),
@@ -109,6 +108,7 @@ export const QuizBuilderModal: React.FC<{
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!classId || !title.trim()) return;
     if (qs.length === 0) { setError('أضف سؤالاً واحداً على الأقل.'); return; }
     for (const q of qs) {
