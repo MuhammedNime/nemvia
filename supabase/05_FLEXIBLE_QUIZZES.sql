@@ -21,6 +21,21 @@ do $$ begin
   end if;
 end $$;
 
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'quizzes_pass_percentage_range' and conrelid = 'public.quizzes'::regclass) then
+    alter table public.quizzes add constraint quizzes_pass_percentage_range check (pass_percentage between 0 and 100) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'quizzes_time_limit_range' and conrelid = 'public.quizzes'::regclass) then
+    alter table public.quizzes add constraint quizzes_time_limit_range check (time_limit_minutes between 0 and 240) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'quiz_questions_points_range' and conrelid = 'public.quiz_questions'::regclass) then
+    alter table public.quiz_questions add constraint quiz_questions_points_range check (points > 0 and points <= 100) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'quiz_questions_options_array' and conrelid = 'public.quiz_questions'::regclass) then
+    alter table public.quiz_questions add constraint quiz_questions_options_array check (jsonb_typeof(options) = 'array') not valid;
+  end if;
+end $$;
+
 alter table public.quiz_answer_keys
   add column if not exists correct_answer text,
   add column if not exists accepted_answers text[] not null default '{}';
