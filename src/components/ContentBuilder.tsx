@@ -112,7 +112,7 @@ export const QuizBuilderModal: React.FC<{
     if (qs.length === 0) { setError('أضف سؤالاً واحداً على الأقل.'); return; }
     for (const q of qs) {
       if (!q.question.trim()) { setError('اكتب نص كل سؤال قبل النشر.'); return; }
-      if (!Number.isFinite(q.points) || q.points <= 0 || q.points > 100) { setError('درجة كل سؤال يجب أن تكون بين 0.25 و100.'); return; }
+      if (!Number.isFinite(q.points) || q.points <= 0 || q.points > 100) { setError('درجة كل سؤال يجب أن تكون أكبر من 0 وبحد أقصى 100.'); return; }
       if (q.type === 'single_choice') {
         const filled = q.options.filter(o => o.trim());
         if (filled.length < 2 || !q.options[q.correctOptionIndex]?.trim()) { setError('سؤال الاختيار يحتاج خيارين على الأقل وإجابة صحيحة.'); return; }
@@ -196,7 +196,7 @@ export const QuizBuilderModal: React.FC<{
           <div className="grid sm:grid-cols-4 gap-2">
             <input value={q.explanation} onChange={e => upd(i, { explanation: e.target.value })} placeholder="شرح أو ملاحظة للطالب بعد الحل" className={`${field} sm:col-span-3`} maxLength={2000} />
             <label className="text-[10px] font-bold text-slate-600">علامة السؤال
-              <input type="number" min={0.25} max={100} step={0.25} value={q.points} onChange={e => upd(i, { points: Number(e.target.value) })} className={field} />
+            <input type="number" min={0.01} max={100} step={0.01} value={q.points} onChange={e => upd(i, { points: Number(e.target.value) })} className={field} />
             </label>
           </div>
         </div>

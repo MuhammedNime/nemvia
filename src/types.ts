@@ -91,6 +91,7 @@ export interface QuizQuestion {
 export interface QuizQuestionGrade {
   score: number | null;
   feedback?: string;
+  pending?: boolean;
 }
 
 export interface QuizAttempt {

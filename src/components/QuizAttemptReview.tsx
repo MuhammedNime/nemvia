@@ -81,7 +81,7 @@ export const QuizAttemptReview: React.FC<Props> = ({ attempt, questions, onGrade
               </div>
               {editing ? (
                 <div className="grid sm:grid-cols-[120px_1fr] gap-2">
-                  <input type="number" min={0} max={q.points} step={0.25} value={draft?.score ?? ''}
+                  <input type="number" min={0} max={q.points} step={0.01} value={draft?.score ?? ''}
                     onChange={e => changeGrade(q.id, e.target.value)} placeholder="العلامة" className="w-full p-2 border border-slate-200 rounded-lg text-xs" />
                   <input value={draft?.feedback || ''} onChange={e => changeQuestionFeedback(q.id, e.target.value)}
                     placeholder="ملاحظة لهذا السؤال (اختياري)" className="w-full p-2 border border-slate-200 rounded-lg text-xs" maxLength={2000} />
