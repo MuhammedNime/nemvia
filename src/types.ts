@@ -122,6 +122,7 @@ export interface Quiz {
   attempted?: boolean;
   myScore?: number;
   myGradingStatus?: 'pending' | 'graded';
+  myTeacherFeedback?: string;
   attempts?: QuizAttempt[];
 }
 

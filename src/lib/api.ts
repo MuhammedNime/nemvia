@@ -158,7 +158,7 @@ export async function loadAll(me: Profile): Promise<AppData> {
     supabase.from('quizzes').select('*').order('created_at', { ascending: false }),
     supabase.from('quiz_questions').select('*').order('position', { ascending: true }),
     supabase.from('quiz_answer_keys').select('*'),
-    supabase.from('quiz_attempts').select('*').order('submitted_at', { ascending: false }),
+    supabase.from('quiz_attempts').select('*').order('submitted_at', { ascending: false }).limit(500),
     supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(100),
     supabase.from('comments').select('*').order('created_at', { ascending: true }),
     supabase.from('post_likes').select('post_id, user_id'),
@@ -278,6 +278,7 @@ export async function loadAll(me: Profile): Promise<AppData> {
       passPercentage: Number(r.pass_percentage ?? 50), questions, isPublished: r.is_published,
       attemptsCount: quizAttempts.length, attempts: quizAttempts,
       attempted: !!myAttempt, myScore: myAttempt?.score ?? 0, myGradingStatus: myAttempt?.gradingStatus,
+      myTeacherFeedback: myAttempt?.teacherFeedback,
     };
   });
 

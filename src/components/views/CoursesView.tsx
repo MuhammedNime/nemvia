@@ -218,7 +218,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-slate-900">أحسنت عملاً يا {currentUserName}!</h3>
+                    <h3 className="text-2xl font-black text-slate-900">تم تسليم الاختبار يا {currentUserName}</h3>
                     <p className="text-xs text-slate-500">{quizResult?.pendingReview ? 'تم تصحيح الأسئلة الموضوعية، وباقي الإجابات بانتظار المعلم.' : 'تم تصحيح إجاباتك وحساب نتيجتك.'}</p>
                   </div>
 
@@ -421,6 +421,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
                   </button>
                   )}
                 </div>
+                {q.attempted && q.myTeacherFeedback && <p className="p-2 bg-sky-50 rounded-lg text-[11px] text-sky-900">تعليق المعلم: {q.myTeacherFeedback}</p>}
                 {(currentRole === 'admin' || classes.find(c => c.id === q.class_id)?.teacher_id === currentUserId) && (q.attempts?.length || 0) > 0 && (
                   <div className="pt-2 border-t border-slate-100 space-y-3">
                     <button type="button" onClick={() => setExpandedQuizId(expandedQuizId === q.id ? null : q.id)}
